@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>人才盘点 - 用户评分</title>
+  <style>
+    body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fb;margin:0}
+    .wrap{max-width:900px;margin:24px auto;background:#fff;border-radius:12px;padding:20px;border:1px solid #d7deea}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    select,button{width:100%;padding:8px;border-radius:8px;border:1px solid #cfd7e6}
+    .item{display:grid;grid-template-columns:1fr 120px;gap:10px;border:1px solid #e5eaf5;padding:8px;border-radius:8px;margin:8px 0}
+    .muted{color:#6d7b92}
+    button{background:#3a76f0;color:#fff;border:none}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h2>人才盘点 - 用户评分界面</h2>
+  <p class="muted">流程：选择部门 → 选择员工（系统在后台按员工职级关联行为）→ 行为评分 → 绩效评分。</p>
+  <div class="row">
+    <div><label>部门</label><select id="dept"></select></div>
+    <div><label>员工</label><select id="emp"></select></div>
+  </div>
+  <div id="behaviors"></div>
+  <p id="avg">工作行为总分：0.00</p>
+  <div style="max-width:220px">
+    <label>绩效评分</label>
+    <select id="perf"><option value="">请选择</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+  </div>
+  <button id="submit" type="button">提交评分</button>
+  <p id="msg"></p>
+</div>
+<script>
+const dept=document.getElementById('dept');
+const emp=document.getElementById('emp');
+const behaviors=document.getElementById('behaviors');
+const avg=document.getElementById('avg');
+const perf=document.getElementById('perf');
+const msg=document.getElementById('msg');
+
+async function api(url,opts){const r=await fetch(url,opts);if(!r.ok) throw new Error((await r.json()).message||'请求失败'); return r.json();}
+function calc(){const vals=[...document.querySelectorAll('.bscore')].map(s=>Number(s.value)).filter(Boolean);const all=document.querySelectorAll('.bscore').length;const a=vals.length?vals.reduce((x,y)=>x+y,0)/vals.length:0;avg.textContent=`工作行为总分：${a.toFixed(2)}（已完成 ${vals.length}/${all}）`;return {vals,all,a};}
+
+async function loadDepts(){const ds=await api('/api/public/departments');dept.innerHTML=ds.map(d=>`<option value="${d}">${d}</option>`).join('');await loadEmp();}
+async function loadEmp(){const list=await api(`/api/public/employees?department=${encodeURIComponent(dept.value)}`);emp.innerHTML=list.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');await loadBehaviors();}
+async function loadBehaviors(){const data=await api(`/api/public/employee/${emp.value}/behaviors`);behaviors.innerHTML=data.behaviors.map((b,i)=>`<div class="item"><div>${i+1}. ${b}</div><select class="bscore"><option value="">请选择</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>`).join('');document.querySelectorAll('.bscore').forEach(i=>i.addEventListener('change',calc));calc();}
+
+dept.addEventListener('change',loadEmp);
+emp.addEventListener('change',loadBehaviors);
+document.getElementById('submit').addEventListener('click', async ()=>{
+  try{
+    const {vals,all}=calc();
+    if(vals.length!==all) throw new Error('请完成全部行为评分');
+    if(!perf.value) throw new Error('请选择绩效评分');
+    await api('/api/public/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({employeeId:emp.value,behaviorScores:vals,performanceScore:Number(perf.value)})});
+    msg.textContent='提交成功';
+  }catch(e){msg.textContent=e.message;}
+});
+loadDepts();
+</script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>人才盘点 - 后台管理</title>
+  <style>
+    body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fb;margin:0}
+    .wrap{max-width:1100px;margin:24px auto;background:#fff;border:1px solid #d7deea;border-radius:12px;padding:20px}
+    input,button,textarea{padding:8px;border-radius:8px;border:1px solid #cfd7e6}
+    button{background:#3a76f0;color:#fff;border:none;cursor:pointer}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border-bottom:1px solid #e6ecf8;padding:6px;text-align:left}
+    .grid{position:relative;width:520px;height:520px;border:2px solid #9bb5f5;background:
+      linear-gradient(to right,transparent 32.9%, #aac0f7 33%, #aac0f7 33.4%, transparent 33.5%, transparent 66.3%, #aac0f7 66.4%, #aac0f7 66.8%, transparent 66.9%),
+      linear-gradient(to bottom,transparent 32.9%, #aac0f7 33%, #aac0f7 33.4%, transparent 33.5%, transparent 66.3%, #aac0f7 66.4%, #aac0f7 66.8%, transparent 66.9%),#f3f7ff;border-radius:10px}
+    .dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#1d9d63;transform:translate(-50%,-50%)}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+<div class="wrap" id="loginBox">
+  <h3>后台登录</h3>
+  <input id="pwd" type="password" placeholder="请输入后台密码（默认 admin123）">
+  <button id="loginBtn">登录</button>
+  <p id="loginMsg"></p>
+</div>
+
+<div class="wrap hidden" id="adminBox">
+  <h2>人才盘点后台（仅管理员可见）</h2>
+  <h3>评分记录</h3>
+  <table><thead><tr><th>部门</th><th>员工</th><th>职级</th><th>行为总分</th><th>绩效评分</th><th>更新时间</th></tr></thead><tbody id="tbody"></tbody></table>
+  <div class="grid" id="grid"></div>
+
+  <h3>组织与行为配置（可修改）</h3>
+  <p>支持两种方式：1）手动编辑 JSON 并保存；2）下载模板并上传 Excel 批量更新。</p>
+  <button id="downloadTpl">下载 Excel 模板</button>
+  <input type="file" id="excelFile" accept=".xlsx,.xls">
+  <button id="uploadExcel">上传 Excel</button>
+  <p id="uploadMsg"></p>
+
+  <textarea id="cfg" rows="18" style="width:100%"></textarea>
+  <button id="saveCfg">保存配置</button>
+  <p id="cfgMsg"></p>
+</div>
+
+<script>
+let token='';
+const loginBox=document.getElementById('loginBox');
+const adminBox=document.getElementById('adminBox');
+async function req(url,opt={}){opt.headers=opt.headers||{};if(token)opt.headers.Authorization=`Bearer ${token}`;const r=await fetch(url,opt);const d=await r.json();if(!r.ok)throw new Error(d.message||'请求失败');return d;}
+function scoreToAxis(v){return ((v-1)/4)*100;}
+
+async function load(){
+  const [reviews,config]=await Promise.all([req('/api/admin/reviews'),req('/api/admin/config')]);
+  document.getElementById('cfg').value=JSON.stringify(config,null,2);
+  document.getElementById('tbody').innerHTML=reviews.map(r=>`<tr><td>${r.department}</td><td>${r.employeeName}</td><td>${r.level}</td><td>${r.behaviorAverage.toFixed(2)}</td><td>${r.performanceScore.toFixed(2)}</td><td>${new Date(r.updatedAt).toLocaleString()}</td></tr>`).join('')||'<tr><td colspan="6">暂无记录</td></tr>';
+  const grid=document.getElementById('grid'); grid.querySelectorAll('.dot').forEach(n=>n.remove());
+  reviews.forEach(r=>{const d=document.createElement('div');d.className='dot';d.style.left=`${scoreToAxis(r.performanceScore)}%`;d.style.top=`${100-scoreToAxis(r.behaviorAverage)}%`;d.title=`${r.employeeName} 行为:${r.behaviorAverage.toFixed(2)} 绩效:${r.performanceScore.toFixed(2)}`;grid.appendChild(d);});
+}
+
+document.getElementById('loginBtn').addEventListener('click',async()=>{
+  try{const d=await req('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pwd').value})});token=d.token;loginBox.classList.add('hidden');adminBox.classList.remove('hidden');await load();}
+  catch(e){document.getElementById('loginMsg').textContent=e.message;}
+});
+
+document.getElementById('saveCfg').addEventListener('click',async()=>{
+  try{const cfg=JSON.parse(document.getElementById('cfg').value);await req('/api/admin/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});document.getElementById('cfgMsg').textContent='配置保存成功';}
+  catch(e){document.getElementById('cfgMsg').textContent=e.message;}
+});
+
+document.getElementById('downloadTpl').addEventListener('click',async()=>{
+  try{
+    const r=await fetch('/api/admin/template',{headers:{Authorization:`Bearer ${token}`}});
+    if(!r.ok){const d=await r.json();throw new Error(d.message||'下载失败');}
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='talent_template.xlsx';a.click();URL.revokeObjectURL(url);
+  }catch(e){document.getElementById('uploadMsg').textContent=e.message;}
+});
+
+document.getElementById('uploadExcel').addEventListener('click',async()=>{
+  try{
+    const file=document.getElementById('excelFile').files[0]; if(!file) throw new Error('请先选择 Excel 文件');
+    const fd=new FormData(); fd.append('file',file);
+    await req('/api/admin/config/upload',{method:'POST',body:fd});
+    document.getElementById('uploadMsg').textContent='Excel 导入成功';
+    await load();
+  }catch(e){document.getElementById('uploadMsg').textContent=e.message;}
+});
+</script>
+</body>
+</html>
