@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>人才盘点系统</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #d7deea;
+      --text: #1d2a3a;
+      --muted: #5f7085;
+      --primary: #3a76f0;
+      --primary-soft: #eaf0ff;
+      --success: #1d9d63;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 24px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .header {
+      background: linear-gradient(120deg, #3a76f0 0%, #6ea1ff 100%);
+      color: white;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 8px 20px rgba(58, 118, 240, 0.2);
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 4px 14px rgba(20, 35, 65, 0.06);
+    }
+
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    h2 { margin: 0 0 14px; font-size: 20px; }
+    h3 { margin: 8px 0; font-size: 16px; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+
+    select, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    select:focus, button:focus {
+      outline: 2px solid #b4ccff;
+      outline-offset: 1px;
+    }
+
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover { filter: brightness(0.95); }
+
+    .behavior-list {
+      display: grid;
+      gap: 10px;
+      margin: 12px 0 16px;
+    }
+
+    .behavior-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fbfcff;
+      display: grid;
+      grid-template-columns: 1fr 140px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      min-width: 72px;
+      padding: 4px 10px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    .score-summary {
+      padding: 10px;
+      border-radius: 10px;
+      background: #f7fafd;
+      border: 1px dashed var(--line);
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+
+    .success {
+      color: var(--success);
+      font-weight: 600;
+      margin-top: 8px;
+      min-height: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px 6px;
+      text-align: left;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .chart-wrap {
+      margin-top: 14px;
+      overflow-x: auto;
+    }
+
+    .nine-grid {
+      position: relative;
+      width: 560px;
+      height: 560px;
+      background:
+        linear-gradient(to right, transparent 32.9%, #aac0f7 33%, #aac0f7 33.4%, transparent 33.5%, transparent 66.3%, #aac0f7 66.4%, #aac0f7 66.8%, transparent 66.9%),
+        linear-gradient(to bottom, transparent 32.9%, #aac0f7 33%, #aac0f7 33.4%, transparent 33.5%, transparent 66.3%, #aac0f7 66.4%, #aac0f7 66.8%, transparent 66.9%),
+        #f3f7ff;
+      border: 2px solid #9bb5f5;
+      border-radius: 12px;
+    }
+
+    .axis-label {
+      position: absolute;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .x-label { bottom: -28px; right: 8px; }
+    .y-label { top: 8px; left: -62px; transform: rotate(-90deg); transform-origin: top left; }
+
+    .dot {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #1d9d63;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px #1d9d63;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+    }
+
+    .legend { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+    @media (max-width: 700px) {
+      .behavior-item { grid-template-columns: 1fr; }
+      .nine-grid { width: 100%; max-width: 560px; aspect-ratio: 1; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="header">
+      <h1>人才盘点网站（评分端 + 后台端）</h1>
+      <div>流程：选择部门 → 选择员工 → 行为评分（1-5）→ 自动算行为总分 → 绩效评分（1-5）→ 自动落点到九宫格。</div>
+    </section>
+
+    <section class="panel">
+      <h2>1) 用户评分界面</h2>
+      <div class="grid-2">
+        <div>
+          <label for="departmentSelect">选择部门</label>
+          <select id="departmentSelect"></select>
+        </div>
+        <div>
+          <label for="employeeSelect">选择员工</label>
+          <select id="employeeSelect"></select>
+        </div>
+      </div>
+
+      <div id="employeeInfo"></div>
+      <div class="behavior-list" id="behaviorList"></div>
+
+      <div class="score-summary" id="scoreSummary">
+        <span class="score-pill">行为总分：0.00</span>
+        行为评分采用各项平均分（1-5分）。
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label for="performanceScore">绩效评分（1-5分）</label>
+          <select id="performanceScore">
+            <option value="">请选择绩效评分</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button id="submitBtn" type="button">提交评分</button>
+        </div>
+      </div>
+      <div class="success" id="message"></div>
+    </section>
+
+    <section class="panel">
+      <h2>2) 后台管理视图</h2>
+      <div>可查看每位员工的 <b>工作行为总分</b> 与 <b>绩效评分</b>，并自动映射到九宫格。</div>
+      <table>
+        <thead>
+          <tr>
+            <th>部门</th>
+            <th>员工</th>
+            <th>职级</th>
+            <th>工作行为总分</th>
+            <th>绩效评分</th>
+            <th>更新时间</th>
+          </tr>
+        </thead>
+        <tbody id="recordsTableBody"></tbody>
+      </table>
+
+      <div class="chart-wrap">
+        <div class="nine-grid" id="nineGrid">
+          <span class="axis-label x-label">横轴：绩效评分</span>
+          <span class="axis-label y-label">纵轴：工作行为总分</span>
+        </div>
+        <div class="legend">说明：每个绿色点代表一位已完成评分的员工（鼠标悬停可看姓名与分值）。</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const employees = [
+      { id: 1, name: "小明", department: "技术部", level: "P2" },
+      { id: 2, name: "小红", department: "技术部", level: "P3" },
+      { id: 3, name: "小李", department: "市场部", level: "P2" },
+      { id: 4, name: "小王", department: "人力资源部", level: "P1" },
+      { id: 5, name: "小周", department: "市场部", level: "P3" }
+    ];
+
+    const behaviorMap = {
+      P1: ["按流程完成任务", "按时提交周报", "与同事保持良好协作"],
+      P2: ["独立推进项目模块", "主动识别并解决问题", "跨团队有效沟通", "持续复盘并优化"],
+      P3: ["制定团队执行策略", "指导与培养团队成员", "推进关键跨部门协作", "驱动业务结果达成"]
+    };
+
+    const departmentSelect = document.getElementById("departmentSelect");
+    const employeeSelect = document.getElementById("employeeSelect");
+    const behaviorList = document.getElementById("behaviorList");
+    const employeeInfo = document.getElementById("employeeInfo");
+    const scoreSummary = document.getElementById("scoreSummary");
+    const performanceScore = document.getElementById("performanceScore");
+    const message = document.getElementById("message");
+    const submitBtn = document.getElementById("submitBtn");
+    const recordsTableBody = document.getElementById("recordsTableBody");
+    const nineGrid = document.getElementById("nineGrid");
+
+    const storageKey = "talent-review-records";
+
+    function getRecords() {
+      try {
+        return JSON.parse(localStorage.getItem(storageKey)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveRecords(records) {
+      localStorage.setItem(storageKey, JSON.stringify(records));
+    }
+
+    function getDepartments() {
+      return [...new Set(employees.map((item) => item.department))];
+    }
+
+    function renderDepartmentOptions() {
+      const departments = getDepartments();
+      departmentSelect.innerHTML = departments
+        .map((dept) => `<option value="${dept}">${dept}</option>`)
+        .join("");
+    }
+
+    function renderEmployeeOptions() {
+      const dept = departmentSelect.value;
+      const filtered = employees.filter((item) => item.department === dept);
+      employeeSelect.innerHTML = filtered
+        .map((emp) => `<option value="${emp.id}">${emp.name}</option>`)
+        .join("");
+      renderBehaviorItems();
+    }
+
+    function getSelectedEmployee() {
+      return employees.find((item) => String(item.id) === employeeSelect.value);
+    }
+
+    function renderBehaviorItems() {
+      const employee = getSelectedEmployee();
+      if (!employee) return;
+      const behaviors = behaviorMap[employee.level] || [];
+
+      employeeInfo.innerHTML = `<h3>当前员工：${employee.name}（${employee.department}，职级 ${employee.level}）</h3>`;
+
+      behaviorList.innerHTML = behaviors
+        .map(
+          (item, index) => `
+            <div class="behavior-item">
+              <div>${index + 1}. ${item}</div>
+              <select class="behavior-score" data-index="${index}">
+                <option value="">请选择分数</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </div>
+          `
+        )
+        .join("");
+
+      document.querySelectorAll(".behavior-score").forEach((select) => {
+        select.addEventListener("change", refreshBehaviorAverage);
+      });
+
+      refreshBehaviorAverage();
+      message.textContent = "";
+    }
+
+    function getBehaviorScores() {
+      return [...document.querySelectorAll(".behavior-score")]
+        .map((item) => Number(item.value))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+
+    function refreshBehaviorAverage() {
+      const scores = getBehaviorScores();
+      const allCount = document.querySelectorAll(".behavior-score").length;
+      const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+      scoreSummary.innerHTML = `
+        <span class="score-pill">行为总分：${avg.toFixed(2)}</span>
+        已完成 ${scores.length}/${allCount} 项行为评分。
+      `;
+    }
+
+    function scoreToAxis(value) {
+      return ((value - 1) / 4) * 100;
+    }
+
+    function renderAdmin() {
+      const records = getRecords().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+      recordsTableBody.innerHTML = records.length
+        ? records
+            .map(
+              (r) => `
+                <tr>
+                  <td>${r.department}</td>
+                  <td>${r.employeeName}</td>
+                  <td>${r.level}</td>
+                  <td>${r.behaviorAverage.toFixed(2)}</td>
+                  <td>${r.performanceScore.toFixed(2)}</td>
+                  <td>${new Date(r.updatedAt).toLocaleString()}</td>
+                </tr>
+              `
+            )
+            .join("")
+        : `<tr><td colspan="6">暂无评分记录</td></tr>`;
+
+      nineGrid.querySelectorAll(".dot").forEach((dot) => dot.remove());
+      records.forEach((r) => {
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        const x = scoreToAxis(r.performanceScore);
+        const y = 100 - scoreToAxis(r.behaviorAverage);
+        dot.style.left = `${x}%`;
+        dot.style.top = `${y}%`;
+        dot.title = `${r.employeeName}｜行为:${r.behaviorAverage.toFixed(2)}｜绩效:${r.performanceScore.toFixed(2)}`;
+        nineGrid.appendChild(dot);
+      });
+    }
+
+    function submitReview() {
+      const employee = getSelectedEmployee();
+      if (!employee) {
+        message.textContent = "请先选择员工。";
+        return;
+      }
+
+      const behaviorScores = getBehaviorScores();
+      const totalItems = document.querySelectorAll(".behavior-score").length;
+      if (behaviorScores.length !== totalItems) {
+        message.textContent = "请完成全部工作行为评分。";
+        return;
+      }
+
+      const pScore = Number(performanceScore.value);
+      if (!pScore) {
+        message.textContent = "请选择绩效评分。";
+        return;
+      }
+
+      const behaviorAverage = behaviorScores.reduce((a, b) => a + b, 0) / behaviorScores.length;
+
+      const records = getRecords();
+      const existingIdx = records.findIndex((r) => r.employeeId === employee.id);
+      const payload = {
+        employeeId: employee.id,
+        employeeName: employee.name,
+        department: employee.department,
+        level: employee.level,
+        behaviorAverage,
+        performanceScore: pScore,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (existingIdx >= 0) {
+        records[existingIdx] = payload;
+      } else {
+        records.push(payload);
+      }
+
+      saveRecords(records);
+      renderAdmin();
+      message.textContent = `已提交 ${employee.name} 的评分，后台与九宫格已更新。`;
+    }
+
+    departmentSelect.addEventListener("change", renderEmployeeOptions);
+    employeeSelect.addEventListener("change", renderBehaviorItems);
+    submitBtn.addEventListener("click", submitReview);
+
+    renderDepartmentOptions();
+    renderEmployeeOptions();
+    renderAdmin();
+  </script>
+</body>
+</html>
